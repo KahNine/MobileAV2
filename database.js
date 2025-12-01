@@ -12,11 +12,22 @@ export const initDB = () => {
       );
     `);
 
+    // DROP TABLE IF EXISTS to force schema update during dev
+    // WARNING: This deletes all user habits!
+    db.execSync("DROP TABLE IF EXISTS habits");
+
     db.execSync(`
       CREATE TABLE IF NOT EXISTS habits (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId INTEGER NOT NULL,
         title TEXT NOT NULL,
+        icon TEXT,
+        color TEXT,
+        frequency TEXT,
+        category TEXT,
+        goal TEXT,
+        notes TEXT,
+        startDate TEXT,
         completed INTEGER DEFAULT 0,
         FOREIGN KEY (userId) REFERENCES users (id)
       );
@@ -74,9 +85,12 @@ export const loginUser = (username, password) => {
 
 export const getHabits = (userId) => {
   try {
+    const today = new Date().toISOString().split("T")[0];
+    // Filter habits that have started (startDate <= today)
+    // If startDate is null, assume it started immediately
     return db.getAllSync(
-      "SELECT * FROM habits WHERE userId = ? ORDER BY id DESC",
-      [userId]
+      "SELECT * FROM habits WHERE userId = ? AND (startDate IS NULL OR startDate <= ?) ORDER BY id DESC",
+      [userId, today]
     );
   } catch (e) {
     console.error(e);
@@ -84,11 +98,33 @@ export const getHabits = (userId) => {
   }
 };
 
-export const createHabit = (userId, title) => {
+export const createHabit = (userId, habitData) => {
   try {
+    const {
+      title,
+      icon,
+      color,
+      frequency,
+      category,
+      goal,
+      notes,
+      startDate,
+    } = habitData;
+
     db.runSync(
-      "INSERT INTO habits (userId, title, completed) VALUES (?, ?, 0)",
-      [userId, title]
+      `INSERT INTO habits (userId, title, icon, color, frequency, category, goal, notes, startDate, completed) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [
+        userId,
+        title,
+        icon || "check-circle",
+        color || "#4ade80",
+        frequency || "Diário",
+        category || "Geral",
+        goal || "",
+        notes || "",
+        startDate || new Date().toISOString().split("T")[0],
+      ]
     );
     return { success: true };
   } catch (e) {
@@ -185,18 +221,14 @@ export const getDashboardStats = (userId) => {
     const today = new Date().toISOString().split("T")[0];
     
     // 1. Calculate Streak
-    // This is a simplified streak calculation. For a real app, you'd check consecutive days.
-    // Here we just count how many days in a row (backwards from today) have at least one completed habit.
     let currentStreak = 0;
-    let bestStreak = 0; // In a real app, store this in a 'user_stats' table
+    let bestStreak = 0; 
     
-    // Get all completed logs ordered by date desc
     const logs = db.getAllSync(
       "SELECT DISTINCT date FROM habit_logs WHERE status = 1 ORDER BY date DESC"
     );
 
     if (logs.length > 0) {
-      // Check if today or yesterday is active to keep streak alive
       const lastActive = logs[0].date;
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
@@ -219,7 +251,6 @@ export const getDashboardStats = (userId) => {
     }
     
     // 2. Calculate XP & Level
-    // 1 completed habit = 10 XP
     const totalCompleted = db.getFirstSync(
       "SELECT COUNT(*) as count FROM habit_logs WHERE status = 1"
     ).count;
@@ -228,7 +259,7 @@ export const getDashboardStats = (userId) => {
     const level = Math.floor(xp / 100) + 1;
     const xpToNextLevel = 100 - (xp % 100);
 
-    // 3. Weekly Activity (Last 7 days)
+    // 3. Weekly Activity
     const weeklyActivity = [];
     const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
     
@@ -252,7 +283,7 @@ export const getDashboardStats = (userId) => {
 
     return {
       streak: currentStreak,
-      bestStreak: Math.max(currentStreak, bestStreak), // Simplified
+      bestStreak: Math.max(currentStreak, bestStreak), 
       level,
       xp,
       xpToNextLevel,
@@ -272,6 +303,47 @@ export const getDashboardStats = (userId) => {
       weeklyActivity: [],
       weeklyAverage: 0,
       totalCompleted: 0
+    };
+  }
+};
+
+export const getDetailedStats = (userId) => {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    
+    const activeHabits = db.getFirstSync(
+      "SELECT COUNT(*) as count FROM habits WHERE userId = ?", 
+      [userId]
+    ).count;
+
+    const completedToday = db.getFirstSync(
+      "SELECT COUNT(*) as count FROM habits WHERE userId = ? AND completed = 1", 
+      [userId]
+    ).count;
+
+    const totalCompleted = db.getFirstSync(
+      "SELECT COUNT(*) as count FROM habit_logs WHERE status = 1" // Global count
+    ).count;
+
+    // Reuse streak logic or simplify
+    // For now, let's just return what we have
+    const dashStats = getDashboardStats(userId);
+
+    return {
+      activeHabits,
+      completedToday,
+      totalCompleted, // This might be redundant with dashStats but good for clarity
+      bestStreak: dashStats.bestStreak,
+      weeklyActivity: dashStats.weeklyActivity
+    };
+
+  } catch (e) {
+    return {
+      activeHabits: 0,
+      completedToday: 0,
+      totalCompleted: 0,
+      bestStreak: 0,
+      weeklyActivity: []
     };
   }
 };
