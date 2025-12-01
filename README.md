@@ -31,6 +31,7 @@ Este é um aplicativo intuitivo e robusto, projetado para *facilitar a criação
 * *Frontend:* [Liste a tecnologia, Ex: React Native ]
 * *Backend:* [Liste a tecnologia, Ex: React Native]
 * *Banco de Dados:* [SQLite]
+link da build do APK: https://expo.dev/accounts/yanswo/projects/Habits/builds/8ddd9498-2276-4c0c-bf7c-811ec3a94e39
 
 ---
 
