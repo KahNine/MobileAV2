@@ -1,147 +1,234 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
-import { getHabitHistory } from "../database";
+import { getHabitsForDate, toggleHabitStatus, getHabitHistory } from "../database";
+
+const { width } = Dimensions.get("window");
+const CELL_SIZE = (width - 40) / 7;
 
 export default function CalendarView({ userId }) {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [habits, setHabits] = useState([]);
   const [history, setHistory] = useState({});
 
   useEffect(() => {
     loadHistory();
-  }, [userId, currentDate]);
+  }, [userId, currentMonth]); // Reload history when month changes (or could be just on focus)
+
+  useEffect(() => {
+    loadHabits();
+  }, [selectedDate, userId]);
 
   const loadHistory = () => {
     const data = getHabitHistory(userId);
     setHistory(data);
   };
 
-  const daysInMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const loadHabits = () => {
+    const dateStr = selectedDate.toISOString().split("T")[0];
+    const data = getHabitsForDate(userId, dateStr);
+    setHabits(data);
   };
 
-  const firstDayOfMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-  };
-
-  const generateDays = () => {
-    const days = [];
-    const totalDays = daysInMonth(currentDate);
-    const startDay = firstDayOfMonth(currentDate);
-
-    // Empty slots for days before the 1st
-    for (let i = 0; i < startDay; i++) {
-      days.push(null);
-    }
-
-    // Days of the month
-    for (let i = 1; i <= totalDays; i++) {
-      days.push(i);
-    }
-
-    return days;
+  const handleToggle = (habitId, currentStatus) => {
+    const dateStr = selectedDate.toISOString().split("T")[0];
+    toggleHabitStatus(habitId, currentStatus, dateStr);
+    loadHabits();
+    loadHistory(); // Refresh dots
   };
 
   const changeMonth = (increment) => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(newDate.getMonth() + increment);
-    setCurrentDate(newDate);
+    const newMonth = new Date(currentMonth);
+    newMonth.setMonth(newMonth.getMonth() + increment);
+    setCurrentMonth(newMonth);
   };
 
-  const getDayStatus = (day) => {
-    if (!day) return null;
-    const year = currentDate.getFullYear();
-    const month = String(currentDate.getMonth() + 1).padStart(2, "0");
-    const dayStr = String(day).padStart(2, "0");
-    const dateStr = `${year}-${month}-${dayStr}`;
-    
-    return history[dateStr] || 0;
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const days = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay(); // 0 = Sunday
+    return { days, firstDay };
   };
 
-  const monthNames = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-  ];
+  const renderCalendar = () => {
+    const { days, firstDay } = getDaysInMonth(currentMonth);
+    const totalSlots = Math.ceil((days + firstDay) / 7) * 7;
+    const grid = [];
+
+    for (let i = 0; i < totalSlots; i++) {
+      const dayNum = i - firstDay + 1;
+      
+      if (dayNum > 0 && dayNum <= days) {
+        const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dayNum);
+        const dateStr = date.toISOString().split("T")[0];
+        const isSelected = dateStr === selectedDate.toISOString().split("T")[0];
+        const isToday = dateStr === new Date().toISOString().split("T")[0];
+        const hasActivity = history[dateStr] > 0;
+
+        grid.push(
+          <TouchableOpacity
+            key={i}
+            style={[
+              styles.dayCell,
+              isSelected && styles.dayCellSelected,
+              isToday && !isSelected && styles.dayCellToday,
+            ]}
+            onPress={() => setSelectedDate(date)}
+          >
+            <Text
+              style={[
+                styles.dayText,
+                isSelected && styles.dayTextSelected,
+                isToday && !isSelected && styles.dayTextToday,
+              ]}
+            >
+              {dayNum}
+            </Text>
+            {hasActivity && (
+              <View
+                style={[
+                  styles.dot,
+                  isSelected ? { backgroundColor: "#fff" } : { backgroundColor: "#2dd4bf" },
+                ]}
+              />
+            )}
+          </TouchableOpacity>
+        );
+      } else {
+        grid.push(<View key={i} style={styles.dayCell} />);
+      }
+    }
+    return grid;
+  };
+
+  const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => changeMonth(-1)}>
-          <Feather name="chevron-left" size={24} color="#4b5563" />
-        </TouchableOpacity>
-        <Text style={styles.monthTitle}>
-          {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+      {/* Header & Calendar */}
+      <LinearGradient
+        colors={["#2dd4bf", "#0d9488"]}
+        style={styles.headerContainer}
+      >
+        <View style={styles.monthHeader}>
+          <TouchableOpacity onPress={() => changeMonth(-1)}>
+            <Feather name="chevron-left" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.monthTitle}>
+            {currentMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+          </Text>
+          <TouchableOpacity onPress={() => changeMonth(1)}>
+            <Feather name="chevron-right" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.weekRow}>
+          {weekDays.map((day) => (
+            <Text key={day} style={styles.weekDayText}>
+              {day}
+            </Text>
+          ))}
+        </View>
+
+        <View style={styles.calendarGrid}>{renderCalendar()}</View>
+      </LinearGradient>
+
+      {/* Selected Date Title */}
+      <View style={styles.dateHeader}>
+        <Text style={styles.selectedDateTitle}>
+          {selectedDate.toLocaleDateString("pt-BR", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          })}
         </Text>
-        <TouchableOpacity onPress={() => changeMonth(1)}>
-          <Feather name="chevron-right" size={24} color="#4b5563" />
-        </TouchableOpacity>
       </View>
 
-      <View style={styles.weekDays}>
-        {["D", "S", "T", "Q", "Q", "S", "S"].map((day, index) => (
-          <Text key={index} style={styles.weekDayText}>{day}</Text>
-        ))}
-      </View>
+      {/* Habits List */}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {habits.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Feather name="inbox" size={48} color="#d1d5db" />
+            <Text style={styles.emptyText}>Nenhum hábito para este dia</Text>
+          </View>
+        ) : (
+          habits.map((habit) => (
+            <TouchableOpacity
+              key={habit.id}
+              style={[
+                styles.habitCard,
+                habit.completed && { borderColor: habit.color, borderWidth: 1 },
+              ]}
+              onPress={() => handleToggle(habit.id, habit.completed)}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: habit.completed ? habit.color : "#f3f4f6" },
+                ]}
+              >
+                <Feather
+                  name={habit.icon || "activity"}
+                  size={24}
+                  color={habit.completed ? "#fff" : habit.color}
+                />
+              </View>
 
-      <View style={styles.calendarGrid}>
-        {generateDays().map((day, index) => {
-          const count = getDayStatus(day);
-          const isToday = 
-            day === new Date().getDate() && 
-            currentDate.getMonth() === new Date().getMonth() &&
-            currentDate.getFullYear() === new Date().getFullYear();
+              <View style={styles.habitInfo}>
+                <Text
+                  style={[
+                    styles.habitTitle,
+                    habit.completed && styles.habitTitleCompleted,
+                  ]}
+                >
+                  {habit.title}
+                </Text>
+                <Text style={styles.habitSubtitle}>
+                  {habit.category} • {habit.frequency}
+                </Text>
+              </View>
 
-          return (
-            <View key={index} style={styles.dayCell}>
-              {day && (
-                <View style={[
-                  styles.dayCircle,
-                  count > 0 && styles.hasHabits,
-                  count >= 3 && styles.manyHabits, // Example threshold
-                  isToday && styles.today
-                ]}>
-                  <Text style={[
-                    styles.dayText,
-                    (count > 0 || isToday) && styles.activeDayText
-                  ]}>{day}</Text>
-                </View>
-              )}
-            </View>
-          );
-        })}
-      </View>
-      
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: "#e5e7eb" }]} />
-          <Text style={styles.legendText}>0</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: "#86efac" }]} />
-          <Text style={styles.legendText}>1-2</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: "#22c55e" }]} />
-          <Text style={styles.legendText}>3+</Text>
-        </View>
-      </View>
+              <View style={styles.checkContainer}>
+                {habit.completed ? (
+                  <View
+                    style={[styles.checkCircle, { backgroundColor: habit.color }]}
+                  >
+                    <Feather name="check" size={16} color="#fff" />
+                  </View>
+                ) : (
+                  <View style={styles.uncheckedCircle} />
+                )}
+              </View>
+            </TouchableOpacity>
+          ))
+        )}
+        <View style={{ height: 100 }} />
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 4,
-    margin: 20,
+  container: { flex: 1, backgroundColor: "#f9fafb" },
+  headerContainer: {
+    paddingTop: 50,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    paddingHorizontal: 20,
   },
-  header: {
+  monthHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -150,75 +237,136 @@ const styles = StyleSheet.create({
   monthTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#1f2937",
+    color: "#fff",
+    textTransform: "capitalize",
   },
-  weekDays: {
+  weekRow: {
     flexDirection: "row",
     justifyContent: "space-around",
     marginBottom: 10,
   },
   weekDayText: {
-    color: "#9ca3af",
-    fontSize: 14,
-    fontWeight: "600",
-    width: 32,
+    width: CELL_SIZE,
     textAlign: "center",
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 12,
+    fontWeight: "bold",
   },
   calendarGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
   },
   dayCell: {
-    width: "14.28%", // 100% / 7
-    aspectRatio: 1,
+    width: CELL_SIZE,
+    height: CELL_SIZE,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 5,
+    marginBottom: 4,
+    borderRadius: CELL_SIZE / 2,
   },
-  dayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "transparent",
+  dayCellSelected: {
+    backgroundColor: "#fff",
   },
-  today: {
-    borderWidth: 2,
-    borderColor: "#3b82f6",
-  },
-  hasHabits: {
-    backgroundColor: "#86efac",
-  },
-  manyHabits: {
-    backgroundColor: "#22c55e",
+  dayCellToday: {
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.5)",
   },
   dayText: {
-    color: "#374151",
+    color: "#fff",
     fontSize: 14,
   },
-  activeDayText: {
+  dayTextSelected: {
+    color: "#0d9488",
+    fontWeight: "bold",
+  },
+  dayTextToday: {
     color: "#fff",
     fontWeight: "bold",
   },
-  legend: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 20,
-    gap: 16,
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 2,
   },
-  legendItem: {
+  dateHeader: {
+    padding: 20,
+    paddingBottom: 10,
+  },
+  selectedDateTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+    textTransform: "capitalize",
+  },
+  content: {
+    flex: 1,
+    padding: 20,
+    paddingTop: 0,
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 60,
+  },
+  emptyText: {
+    marginTop: 16,
+    color: "#9ca3af",
+    fontSize: 16,
+  },
+  habitCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 2,
   },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
   },
-  legendText: {
-    color: "#6b7280",
+  habitInfo: {
+    flex: 1,
+  },
+  habitTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1f2937",
+    marginBottom: 4,
+  },
+  habitTitleCompleted: {
+    color: "#9ca3af",
+    textDecorationLine: "line-through",
+  },
+  habitSubtitle: {
     fontSize: 12,
+    color: "#6b7280",
+  },
+  checkContainer: {
+    marginLeft: 12,
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  uncheckedCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#e5e7eb",
   },
 });

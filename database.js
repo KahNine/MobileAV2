@@ -98,6 +98,34 @@ export const getHabits = (userId) => {
   }
 };
 
+export const getHabitsForDate = (userId, date) => {
+  try {
+    // 1. Get all habits active on this date
+    const habits = db.getAllSync(
+      "SELECT * FROM habits WHERE userId = ? AND (startDate IS NULL OR startDate <= ?) ORDER BY id DESC",
+      [userId, date]
+    );
+
+    // 2. Get status for each habit on this specific date
+    return habits.map((habit) => {
+      const log = db.getFirstSync(
+        "SELECT status FROM habit_logs WHERE habitId = ? AND date = ?",
+        [habit.id, date]
+      );
+      
+      // If log exists, use its status. 
+      // If not, it's not completed (0) for that day.
+      return {
+        ...habit,
+        completed: log ? log.status : 0
+      };
+    });
+  } catch (e) {
+    console.error("Erro ao buscar hábitos por data:", e);
+    return [];
+  }
+};
+
 export const createHabit = (userId, habitData) => {
   try {
     const {
@@ -132,20 +160,24 @@ export const createHabit = (userId, habitData) => {
   }
 };
 
-export const toggleHabitStatus = (habitId, currentStatus) => {
+export const toggleHabitStatus = (habitId, currentStatus, date = null) => {
   try {
     const newStatus = currentStatus === 1 ? 0 : 1;
-    const today = new Date().toISOString().split("T")[0];
+    const targetDate = date || new Date().toISOString().split("T")[0];
 
-    db.runSync("UPDATE habits SET completed = ? WHERE id = ?", [
-      newStatus,
-      habitId,
-    ]);
+    // Only update "completed" flag in habits table if it's for today
+    const today = new Date().toISOString().split("T")[0];
+    if (targetDate === today) {
+      db.runSync("UPDATE habits SET completed = ? WHERE id = ?", [
+        newStatus,
+        habitId,
+      ]);
+    }
 
     // Log history
     const existingLog = db.getFirstSync(
       "SELECT * FROM habit_logs WHERE habitId = ? AND date = ?",
-      [habitId, today]
+      [habitId, targetDate]
     );
 
     if (existingLog) {
@@ -156,7 +188,7 @@ export const toggleHabitStatus = (habitId, currentStatus) => {
     } else {
       db.runSync(
         "INSERT INTO habit_logs (habitId, date, status) VALUES (?, ?, ?)",
-        [habitId, today, newStatus]
+        [habitId, targetDate, newStatus]
       );
     }
 
