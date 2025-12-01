@@ -4,11 +4,11 @@
 
 Este é um aplicativo intuitivo e robusto, projetado para *facilitar a criação, o gerenciamento e o acompanhamento dos seus hábitos*. Ele oferece uma plataforma centralizada para você cadastrar seus objetivos, definir lembretes e visualizar seu progresso de forma clara e motivadora.
 
-> 🎯 *Construa rotinas sustentáveis e atinja seus objetivos pessoais com maior facilidade e consistência!*
+>  *Construa rotinas sustentáveis e atinja seus objetivos pessoais com maior facilidade e consistência!*
 
 ---
 
-### ✨ Funcionalidades Principais
+###  Funcionalidades Principais
 
 * *Cadastro de Hábitos:* Crie e personalize seus hábitos com nomes, descrições e metas específicas.
 * *Definição de Lembretes:* Assim que for registrar o habito ele aparecerá no calendario para ter um maior controle sobre quando iniciar seu habito
@@ -34,7 +34,7 @@ Este é um aplicativo intuitivo e robusto, projetado para *facilitar a criação
 
 ---
 
-### 🛠️ Instalação e Configuração
+###  Instalação e Configuração
 
 Siga os passos abaixo para ter uma cópia local do projeto em execução:
 
@@ -43,7 +43,7 @@ Siga os passos abaixo para ter uma cópia local do projeto em execução:
 * [Node.js, Git, IDE]
 
 
-### 🤝 Contribuição
+###  Contribuição
 
 Contribuições são *muito bem-vindas! Se você tem sugestões de melhoria ou encontrou algum *bug, sinta-se à vontade para:
 
