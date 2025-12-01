@@ -2,8 +2,10 @@ import * as SQLite from "expo-sqlite";
 
 const db = SQLite.openDatabaseSync("conquista.db");
 
+// Inicializa o banco de dados e cria as tabelas se não existirem
 export const initDB = () => {
   try {
+    // Tabela de usuários
     db.execSync(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -12,10 +14,11 @@ export const initDB = () => {
       );
     `);
 
-    // DROP TABLE IF EXISTS to force schema update during dev
-    // WARNING: This deletes all user habits!
+    // DROP TABLE IF EXISTS para forçar atualização do esquema durante desenvolvimento
+    // AVISO: Isso deleta todos os hábitos do usuário!
     db.execSync("DROP TABLE IF EXISTS habits");
 
+    // Tabela de hábitos
     db.execSync(`
       CREATE TABLE IF NOT EXISTS habits (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,6 +36,7 @@ export const initDB = () => {
       );
     `);
 
+    // Tabela de logs de hábitos (histórico de conclusão)
     db.execSync(`
       CREATE TABLE IF NOT EXISTS habit_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,8 +52,10 @@ export const initDB = () => {
   }
 };
 
+// Registra um novo usuário no sistema
 export const registerUser = (username, password) => {
   try {
+    // Verifica se usuário já existe
     const existing = db.getAllSync("SELECT * FROM users WHERE username = ?", [
       username,
     ]);
@@ -57,6 +63,7 @@ export const registerUser = (username, password) => {
       return { success: false, message: "Usuário já existe!" };
     }
 
+    // Insere novo usuário
     db.runSync("INSERT INTO users (username, password) VALUES (?, ?)", [
       username,
       password,
@@ -67,6 +74,7 @@ export const registerUser = (username, password) => {
   }
 };
 
+// Realiza o login do usuário verificando credenciais
 export const loginUser = (username, password) => {
   try {
     const user = db.getFirstSync(
@@ -83,11 +91,11 @@ export const loginUser = (username, password) => {
   }
 };
 
+// Busca todos os hábitos ativos do usuário (data de início <= hoje)
 export const getHabits = (userId) => {
   try {
     const today = new Date().toISOString().split("T")[0];
-    // Filter habits that have started (startDate <= today)
-    // If startDate is null, assume it started immediately
+    // Filtra hábitos que já começaram
     return db.getAllSync(
       "SELECT * FROM habits WHERE userId = ? AND (startDate IS NULL OR startDate <= ?) ORDER BY id DESC",
       [userId, today]
@@ -98,23 +106,24 @@ export const getHabits = (userId) => {
   }
 };
 
+// Busca hábitos para uma data específica e verifica se foram completados nesse dia
 export const getHabitsForDate = (userId, date) => {
   try {
-    // 1. Get all habits active on this date
+    // 1. Busca todos os hábitos ativos nesta data
     const habits = db.getAllSync(
       "SELECT * FROM habits WHERE userId = ? AND (startDate IS NULL OR startDate <= ?) ORDER BY id DESC",
       [userId, date]
     );
 
-    // 2. Get status for each habit on this specific date
+    // 2. Busca o status de cada hábito nesta data específica
     return habits.map((habit) => {
       const log = db.getFirstSync(
         "SELECT status FROM habit_logs WHERE habitId = ? AND date = ?",
         [habit.id, date]
       );
       
-      // If log exists, use its status. 
-      // If not, it's not completed (0) for that day.
+      // Se existe log, usa o status dele. 
+      // Se não, considera não completado (0).
       return {
         ...habit,
         completed: log ? log.status : 0
@@ -126,6 +135,7 @@ export const getHabitsForDate = (userId, date) => {
   }
 };
 
+// Cria um novo hábito no banco de dados
 export const createHabit = (userId, habitData) => {
   try {
     const {
@@ -160,12 +170,13 @@ export const createHabit = (userId, habitData) => {
   }
 };
 
+// Alterna o status de um hábito (completado/não completado) para uma data
 export const toggleHabitStatus = (habitId, currentStatus, date = null) => {
   try {
     const newStatus = currentStatus === 1 ? 0 : 1;
     const targetDate = date || new Date().toISOString().split("T")[0];
 
-    // Only update "completed" flag in habits table if it's for today
+    // Só atualiza a flag "completed" na tabela habits se for para hoje
     const today = new Date().toISOString().split("T")[0];
     if (targetDate === today) {
       db.runSync("UPDATE habits SET completed = ? WHERE id = ?", [
@@ -174,7 +185,7 @@ export const toggleHabitStatus = (habitId, currentStatus, date = null) => {
       ]);
     }
 
-    // Log history
+    // Registra no histórico (habit_logs)
     const existingLog = db.getFirstSync(
       "SELECT * FROM habit_logs WHERE habitId = ? AND date = ?",
       [habitId, targetDate]
@@ -209,9 +220,10 @@ export const deleteHabit = (habitId) => {
   }
 };
 
+// Busca o histórico de hábitos completados para exibir no calendário
 export const getHabitHistory = (userId) => {
   try {
-    // Join habits and logs to get history for a user's habits
+    // Junta habits e logs para pegar histórico dos hábitos do usuário
     const history = db.getAllSync(`
       SELECT hl.date, hl.status 
       FROM habit_logs hl
@@ -219,7 +231,7 @@ export const getHabitHistory = (userId) => {
       WHERE h.userId = ? AND hl.status = 1
     `, [userId]);
     
-    // Group by date to count completed habits per day
+    // Agrupa por data para contar hábitos completados por dia
     const historyMap = {};
     history.forEach(item => {
       if (!historyMap[item.date]) historyMap[item.date] = 0;
@@ -248,11 +260,12 @@ export const getUserStats = (userId) => {
   }
 };
 
+// Calcula estatísticas para o Dashboard (Streak, XP, Nível, Gráfico Semanal)
 export const getDashboardStats = (userId) => {
   try {
     const today = new Date().toISOString().split("T")[0];
     
-    // 1. Calculate Streak
+    // 1. Calcula Sequência (Streak)
     let currentStreak = 0;
     let bestStreak = 0; 
     
@@ -282,7 +295,7 @@ export const getDashboardStats = (userId) => {
       }
     }
     
-    // 2. Calculate XP & Level
+    // 2. Calcula XP e Nível
     const totalCompleted = db.getFirstSync(
       "SELECT COUNT(*) as count FROM habit_logs WHERE status = 1"
     ).count;
@@ -291,7 +304,7 @@ export const getDashboardStats = (userId) => {
     const level = Math.floor(xp / 100) + 1;
     const xpToNextLevel = 100 - (xp % 100);
 
-    // 3. Weekly Activity
+    // 3. Atividade Semanal (últimos 7 dias)
     const weeklyActivity = [];
     const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
     
@@ -309,7 +322,7 @@ export const getDashboardStats = (userId) => {
       weeklyActivity.push({ day: dayName, count, fullDate: dateStr });
     }
 
-    // 4. Weekly Average
+    // 4. Média Semanal
     const totalWeekly = weeklyActivity.reduce((acc, curr) => acc + curr.count, 0);
     const weeklyAverage = Math.round(totalWeekly / 7);
 

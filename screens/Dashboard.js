@@ -29,11 +29,12 @@ export default function DashboardScreen({ route, navigation }) {
   // We use a key to force re-render of views when data might have changed
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Função para salvar um novo hábito
   const handleAddHabit = (habitData) => {
     const res = createHabit(userId, habitData);
     if (res.success) {
       setModalVisible(false);
-      setRefreshKey((prev) => prev + 1); // Refresh views
+      setRefreshKey((prev) => prev + 1); // Força atualização das views
       Alert.alert("Sucesso", "Hábito criado com sucesso!");
     } else {
       Alert.alert("Erro", "Não foi possível criar o hábito");
@@ -44,8 +45,9 @@ export default function DashboardScreen({ route, navigation }) {
     navigation.replace("Login");
   };
 
+  // Renderiza o conteúdo principal com base na aba ativa
   const renderContent = () => {
-    // Pass refreshKey to force re-render if needed, or rely on internal useEffects
+    // Passa refreshKey para forçar re-renderização quando necessário
     if (activeTab === "Dashboard") {
       return <DashboardView userId={userId} key={refreshKey} />;
     }
@@ -65,7 +67,7 @@ export default function DashboardScreen({ route, navigation }) {
       );
     }
 
-    // Default view (Início)
+    // View padrão (Início)
     return <HomeView userId={userId} key={refreshKey} />;
   };
 
@@ -97,7 +99,7 @@ export default function DashboardScreen({ route, navigation }) {
       {/* Main Content */}
       <View style={{ flex: 1 }}>{renderContent()}</View>
 
-      {/* FAB - Only on Home or Dashboard */}
+      {/* Botão Flutuante (FAB) - Apenas na Home ou Dashboard */}
       {(activeTab === "Início" || activeTab === "Dashboard") && (
         <TouchableOpacity
           style={styles.fab}
@@ -113,7 +115,7 @@ export default function DashboardScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
-      {/* Custom Tab Bar */}
+      {/* Barra de Abas Inferior */}
       <View style={styles.tabBar}>
         <TabItem name="Início" icon="home" label="Início" />
         <TabItem name="Dashboard" icon="grid" label="Dash" />

@@ -28,17 +28,20 @@ export default function CalendarView({ userId }) {
     loadHabits();
   }, [selectedDate, userId]);
 
+  // Carrega o histórico de hábitos (dias com conclusões)
   const loadHistory = () => {
     const data = getHabitHistory(userId);
     setHistory(data);
   };
 
+  // Carrega os hábitos para a data selecionada
   const loadHabits = () => {
     const dateStr = selectedDate.toISOString().split("T")[0];
     const data = getHabitsForDate(userId, dateStr);
     setHabits(data);
   };
 
+  // Alterna o status do hábito e recarrega a lista e o histórico
   const handleToggle = (habitId, currentStatus) => {
     const dateStr = selectedDate.toISOString().split("T")[0];
     toggleHabitStatus(habitId, currentStatus, dateStr);
@@ -46,12 +49,14 @@ export default function CalendarView({ userId }) {
     loadHistory(); // Refresh dots
   };
 
+  // Navega entre os meses
   const changeMonth = (increment) => {
     const newMonth = new Date(currentMonth);
     newMonth.setMonth(newMonth.getMonth() + increment);
     setCurrentMonth(newMonth);
   };
 
+  // Calcula quantos dias tem no mês e qual o dia da semana do primeiro dia
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -60,6 +65,7 @@ export default function CalendarView({ userId }) {
     return { days, firstDay };
   };
 
+  // Renderiza a grade do calendário
   const renderCalendar = () => {
     const { days, firstDay } = getDaysInMonth(currentMonth);
     const totalSlots = Math.ceil((days + firstDay) / 7) * 7;
@@ -68,6 +74,7 @@ export default function CalendarView({ userId }) {
     for (let i = 0; i < totalSlots; i++) {
       const dayNum = i - firstDay + 1;
       
+      // Se for um dia válido do mês
       if (dayNum > 0 && dayNum <= days) {
         const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dayNum);
         const dateStr = date.toISOString().split("T")[0];
@@ -94,6 +101,7 @@ export default function CalendarView({ userId }) {
             >
               {dayNum}
             </Text>
+            {/* Indicador de atividade (bolinha) */}
             {hasActivity && (
               <View
                 style={[
@@ -105,6 +113,7 @@ export default function CalendarView({ userId }) {
           </TouchableOpacity>
         );
       } else {
+        // Célula vazia (padding)
         grid.push(<View key={i} style={styles.dayCell} />);
       }
     }

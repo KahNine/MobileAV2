@@ -29,11 +29,13 @@ export default function DashboardView({ userId }) {
     loadStats();
   }, [userId]);
 
+  // Carrega as estatísticas do dashboard (streak, xp, nível, etc)
   const loadStats = () => {
     const data = getDashboardStats(userId);
     setStats(data);
   };
 
+  // Componente auxiliar para renderizar cards de estatísticas
   const StatCard = ({ icon, value, label, color }) => (
     <View style={styles.statCard}>
       <View style={[styles.iconContainer, { backgroundColor: color }]}>
@@ -52,7 +54,7 @@ export default function DashboardView({ userId }) {
       contentContainerStyle={{ paddingBottom: 100 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header Card */}
+      {/* Card de Cabeçalho com Saudação e Progresso Diário */}
       <LinearGradient
         colors={["#4facfe", "#00f2fe"]}
         start={{ x: 0, y: 0 }}
@@ -80,7 +82,7 @@ export default function DashboardView({ userId }) {
         />
       </LinearGradient>
 
-      {/* Level Card */}
+      {/* Card de Nível e XP */}
       <LinearGradient
         colors={["#c084fc", "#db2777"]}
         start={{ x: 0, y: 0 }}
@@ -101,7 +103,7 @@ export default function DashboardView({ userId }) {
         <Text style={styles.xpRemaining}>Faltam {stats.xpToNextLevel} XP</Text>
       </LinearGradient>
 
-      {/* Stats Grid */}
+      {/* Grade de Estatísticas Gerais */}
       <View style={styles.statsGrid}>
         <StatCard
           icon="flame"
@@ -129,7 +131,7 @@ export default function DashboardView({ userId }) {
         />
       </View>
 
-      {/* Weekly Challenge */}
+      {/* Desafio Semanal */}
       <LinearGradient
         colors={["#f59e0b", "#f97316"]}
         style={styles.challengeCard}
@@ -165,7 +167,7 @@ export default function DashboardView({ userId }) {
         </View>
       </LinearGradient>
 
-      {/* Activity Chart */}
+      {/* Gráfico de Atividade Recente */}
       <View style={styles.chartCard}>
         <View style={styles.chartHeader}>
           <Feather name="trending-up" size={20} color="#22c55e" />
