@@ -15,23 +15,28 @@ import { Feather } from "@expo/vector-icons";
 
 import AnimatedBackground from "../components/AnimatedBackground";
 import Input from "../components/Input";
-import { loginUser } from "../database";
+import { registerUser } from "../database";
 
-export default function LoginScreen({ navigation }) {
+export default function RegisterScreen({ navigation }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleLogin = () => {
+  const handleRegister = () => {
     if (!username || !password) {
-      Alert.alert("Ops", "Preencha todos os campos");
+      Alert.alert("Erro", "Preencha os campos");
       return;
     }
-    const res = loginUser(username, password);
+    if (password !== confirmPassword) {
+      Alert.alert("Erro", "As senhas não coincidem");
+      return;
+    }
+
+    const res = registerUser(username, password);
     if (res.success) {
-      navigation.replace("Dashboard", {
-        userId: res.user.id,
-        username: res.user.username,
-      });
+      Alert.alert("Sucesso", "Conta criada! Faça login.", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
     } else {
       Alert.alert("Erro", res.message);
     }
@@ -50,77 +55,64 @@ export default function LoginScreen({ navigation }) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Feather name="arrow-left" size={24} color="#fff" />
+          </TouchableOpacity>
+
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Feather name="star" size={32} color="#4ade80" />
-            </View>
-            <Text style={styles.title}>Conquista Diária</Text>
-            <Text style={styles.subtitle}>
-              Transforme pequenos hábitos em grandes conquistas
-            </Text>
+            <Text style={styles.title}>Criar Conta</Text>
+            <Text style={styles.subtitle}>Comece sua jornada hoje mesmo</Text>
           </View>
 
           <View style={styles.card}>
             <Input
-              label="Usuário"
-              icon="user-alt"
+              label="Escolha um Usuário"
+              icon="user-plus"
               value={username}
               onChange={setUsername}
             />
             <Input
-              label="Senha"
+              label="Sua Senha"
               icon="lock"
               color="#f59e0b"
               isPassword
               value={password}
               onChange={setPassword}
             />
+            <Input
+              label="Confirme a Senha"
+              icon="check-circle"
+              color="#10b981"
+              isPassword
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+            />
 
             <TouchableOpacity
               style={styles.gradientButtonContainer}
               activeOpacity={0.8}
-              onPress={handleLogin}
+              onPress={handleRegister}
             >
               <LinearGradient
-                colors={["#4ade80", "#3b82f6"]}
+                colors={["#3b82f6", "#8b5cf6"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.gradientButton}
               >
                 <Feather
-                  name="log-in"
+                  name="user-check"
                   size={20}
                   color="#fff"
                   style={{ marginRight: 8 }}
                 />
                 <Text style={styles.gradientButtonText}>
-                  Entrar na Plataforma
+                  Cadastrar e Entrar
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Register")}
-              style={{ marginTop: 20 }}
-            >
-              <Text style={styles.linkText}>
-                Não tem conta?{" "}
-                <Text style={{ color: "#3b82f6", fontWeight: "bold" }}>
-                  Crie agora
-                </Text>
-              </Text>
-            </TouchableOpacity>
-
-            <View style={{ marginTop: 40, alignItems: "center" }}>
-              <Text style={{ color: "#9ca3af", fontSize: 12 }}>
-                Desenvolvido por
-              </Text>
-              <Text
-                style={{ color: "#6b7280", fontSize: 14, fontWeight: "bold" }}
-              >
-                Karine Evelyn e Yan Lucas
-              </Text>
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -132,16 +124,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#333" },
   contentContainer: { flex: 1, zIndex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: "center", padding: 24 },
-  header: { alignItems: "center", marginBottom: 30 },
-  logoContainer: {
-    width: 70,
-    height: 70,
-    backgroundColor: "rgba(255,255,255,0.9)",
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
+  header: { alignItems: "center", marginBottom: 30, marginTop: 40 },
   title: {
     fontSize: 28,
     fontWeight: "bold",
@@ -177,5 +160,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   gradientButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
-  linkText: { textAlign: "center", color: "#6b7280", fontSize: 14 },
+  backButton: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 12,
+  },
 });
